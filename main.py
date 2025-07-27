@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import yfinance as yf
@@ -12,7 +13,7 @@ if not Path("^GSPC_cost.csv").exists():
     df.to_csv("^GSPC_cost.csv")
 
 '''
-computes money at the end of the time frame if DCAing (weekly)
+computes how much more or less you would make as a percent DCAing
 or lump summing, iterates through the history of the s&p 500 until reaching
 current week - DCA_weeks
 '''
@@ -27,62 +28,56 @@ def Compare_DCA_LS(df, DCA_weeks, start_time, money):
         DCA_shares = 0
         for j in range(i, i + DCA_weeks):
             DCA_shares = DCA_shares + (DCA_weekly_money / df["Close"][j])
-        end_share_cost = df["Close"][i + DCA_weeks - 1]
-        results.append({"LS": LS_shares * end_share_cost, "DCA": DCA_shares * end_share_cost})
+        results.append({"Difference": ((LS_shares-DCA_shares)/LS_shares) * 100})
 
-    results_df = pd.DataFrame(results).round(2)
-    results_dict = {
-        'means': 
-            {'LS': (results_df["LS"].mean().round(2)),'DCA': (results_df["DCA"].mean().round(2))},
-        'medians': 
-            {'LS': (results_df["LS"].median().round(2)),'DCA': (results_df["DCA"].median().round(2))},
-        'standard_deviations': 
-            {'LS': (results_df["LS"].std().round(2)),'DCA': (results_df["DCA"].std().round(2))},
-        'Q1': 
-            {'LS': (results_df["LS"].quantile(0.25).round(2)),'DCA': (results_df["DCA"].quantile(0.25).round(2))},
-        'Q3': 
-            {'LS': (results_df["LS"].quantile(0.75).round(2)),'DCA': (results_df["DCA"].quantile(0.75).round(2))},
-        'minimums': 
-            {'LS': (results_df["LS"].min()),'DCA': (results_df["DCA"].min())},
-        'maximums': 
-            {'LS': (results_df["LS"].max()),'DCA': (results_df["DCA"].max())},
-        'win_rates': 
-            {'LS': ((results_df["LS"] > results_df["DCA"]).mean() * 100).round(2),'DCA': (100 - (results_df["LS"] > results_df["DCA"]).mean() * 100).round(2)}
-    }
+    results_df = pd.DataFrame(results).round(5)
+    return(results_df)
+
+def Difference_Plot(df, weeks):
+    plt.figure(figsize = (10,6))
+    sns.histplot(data = df, stat = "percent", kde = True, color = "blue", alpha = 0.5)
+    plt.axvline(df.median().item(), color = "blue", linestyle = "--", label = "median")
+    plt.axvline(df.quantile(0.25).item(), color = "red", linestyle = "--", label = "25th percentile")
+    plt.axvline(df.quantile(0.75).item(), color = "green", linestyle = "--", label = "75th percentile")
     
-    return(results_df, results_dict)
- 
-def Overlay_Plot(df, dict):
-    plt.figure(figsize=(10,6))
-    sns.histplot(data = df["LS"], stat = "percent", kde = True, color = "blue", label = "Lump Sum", alpha = 0.5)
-    sns.histplot(data = df["DCA"], stat = "percent", kde = True, color = "orange", label = "Dollar Cost Average", alpha = 0.5)
-    
-    plt.axvline(dict["Q1"]["LS"], color = "blue", linestyle = "--", label = "LS 25%")
-    plt.axvline(dict["Q1"]["DCA"], color = "orange", linestyle = "--", label = "DCA 25%")
-    plt.axvline(dict["Q3"]["LS"], color = "blue", linestyle = "-.", label = "LS 75%")
-    plt.axvline(dict["Q3"]["DCA"], color = "orange", linestyle = "-.", label = "DCA 75%")
-    
-    plt.title("DCA vs Lump Sum Overlaid")
-    plt.xlabel("$")
+    plt.title(f"DCA vs Lump Sum ({weeks} weeks)")
+    plt.xlabel(f"% Lump Sum beats DCA")
     plt.ylabel("Frequency %")
     plt.legend()
     plt.grid(alpha = 0.2)
-    plt.show() 
-
+    plt.show()
+    
+def DCA_Time_Plot(df, start_week):
+    df1=Compare_DCA_LS(df, 4, start_week, 10000)
+    df2=Compare_DCA_LS(df, 12, start_week, 10000)
+    df3=Compare_DCA_LS(df, 26, start_week, 10000)
+    df4=Compare_DCA_LS(df, 52, start_week, 10000)
+    df5=Compare_DCA_LS(df, 104, start_week, 10000)
+    
+    x_vals = [4,12,26,52,104]
+    medians = [df.median().item() for df in [df1,df2,df3,df4,df5]]
+    q1 = [df.quantile(0.25).item() for df in [df1,df2,df3,df4,df5]]
+    q3 = [df.quantile(0.75).item() for df in [df1,df2,df3,df4,df5]]
+    
+    plt.figure(figsize=(10,6))
+    ax = sns.barplot(x=x_vals, y=medians, color="blue")
+    bar_centers = [bar.get_x() + bar.get_width()/2 for bar in ax.patches]
+    plt.errorbar(x=bar_centers, y=medians, yerr=[np.array(medians) - np.array(q1),
+        np.array(q3)-np.array(medians)], capsize=5, fmt="o", label = "1st and 3rd quartile")
+    plt.xlabel("DCA Duration (Weeks)")
+    plt.ylabel(f"Mean % Value Difference")
+    plt.title("DCA Performance Mean and SD by year")
+    plt.grid(alpha=0.3)
+    plt.legend()
+    plt.axhline(y=0, color='black', linestyle='--', linewidth=1)
+    plt.show()
+    
 df = pd.read_csv("^GSPC_cost.csv")
 df = df.round(2)
-DCA_weeks = 26
-results_df, results_dict=Compare_DCA_LS(df, DCA_weeks, 2088, 10000)
+DCA_weeks = 54
+start_week = 2088
+results_df=Compare_DCA_LS(df, DCA_weeks, start_week, 10000)
 
-Overlay_Plot(results_df,results_dict)
-
-
-
-
-'''print(f"Weeks: {DCA_weeks}")
-for category, metric in results_dict.items():
-    print(f"Category: {category}")
-    for strat, value in metric.items():
-        print(f"    {strat}: {value}")
-percent_diff = ((results_dict["means"]["LS"]-results_dict["means"]["DCA"])/results_dict["means"]["DCA"])*100
-print(f"Lump summing returns {percent_diff}% more on average")'''
+#DCA_Time_Plot(df, 2088)
+#Overlay_Plot(results_df,results_dict)
+#Difference_Plot(results_df, DCA_weeks)
