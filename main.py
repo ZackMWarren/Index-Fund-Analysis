@@ -33,6 +33,7 @@ def Compare_DCA_LS(df, DCA_weeks, start_time, money):
     results_df = pd.DataFrame(results).round(5)
     return(results_df)
 
+#plots difference in return for DCAing a certain ammount of weeks
 def Difference_Plot(df, weeks):
     plt.figure(figsize = (10,6))
     sns.histplot(data = df, stat = "percent", kde = True, color = "blue", alpha = 0.5)
@@ -46,7 +47,8 @@ def Difference_Plot(df, weeks):
     plt.legend()
     plt.grid(alpha = 0.2)
     plt.show()
-    
+
+#plots the difference in expected returns at DCA lengths
 def DCA_Time_Plot(df, start_week):
     df1=Compare_DCA_LS(df, 4, start_week, 10000)
     df2=Compare_DCA_LS(df, 12, start_week, 10000)
@@ -65,19 +67,23 @@ def DCA_Time_Plot(df, start_week):
     plt.errorbar(x=bar_centers, y=medians, yerr=[np.array(medians) - np.array(q1),
         np.array(q3)-np.array(medians)], capsize=5, fmt="o", label = "1st and 3rd quartile")
     plt.xlabel("DCA Duration (Weeks)")
-    plt.ylabel(f"Mean % Value Difference")
-    plt.title("DCA Performance Mean and SD by year")
+    plt.ylabel(f"Median % LS Beats DCA")
+    plt.title("How Much Lump Sum Beats DCA by Weeks")
     plt.grid(alpha=0.3)
     plt.legend()
     plt.axhline(y=0, color='black', linestyle='--', linewidth=1)
     plt.show()
+
+def Find_Start_Year(df, year):
+    date_df = pd.to_datetime(df['Date'])
+    date_df = date_df[date_df.dt.year == year]
+    return date_df.index[0]
     
 df = pd.read_csv("^GSPC_cost.csv")
 df = df.round(2)
 DCA_weeks = 54
-start_week = 2088
+start_week = Find_Start_Year(df, 1990)
 results_df=Compare_DCA_LS(df, DCA_weeks, start_week, 10000)
 
-#DCA_Time_Plot(df, 2088)
-#Overlay_Plot(results_df,results_dict)
-#Difference_Plot(results_df, DCA_weeks)
+DCA_Time_Plot(df, start_week)
+Difference_Plot(results_df, DCA_weeks)
