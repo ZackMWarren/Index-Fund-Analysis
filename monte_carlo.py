@@ -7,6 +7,7 @@ def simulate_market_growth(start_balance, monthly_contribution, years, mu, sigma
     months = years * 12
     balance = start_balance
     balances = []
+    balances.append(balance)
 
     for _ in range(months):
         # Simulate monthly return
@@ -29,9 +30,9 @@ def run_monte_carlo_simulations(n, start_balance, monthly_contribution, years, m
 # Function to plot the results of the monte carlo simulations
 def plot_simulation_results(sim_df):
     plt.figure(figsize=(12, 6))
-    for i in range(len(sim_df)):
-        plt.plot(sim_df.columns, sim_df.iloc[i], color='skyblue', alpha=0.2)
-    plt.plot(sim_df.columns, sim_df.median(), color='black', label='Median Outcome')
+    for i in range(len(sim_df.columns)):
+        plt.plot(sim_df.index, sim_df.iloc[:, i], color='skyblue', alpha=0.2)
+    plt.plot(sim_df.index, sim_df.median(axis = 1), color='black', label='Median Outcome')
     plt.xlabel("Months")
     plt.ylabel("Portfolio Value ($)")
     plt.title("Monte Carlo Simulations of Portfolio Growth")
